@@ -1,13 +1,17 @@
 package com.enterprise.service.controller;
 
 import com.enterprise.service.model.Employee;
+import com.enterprise.service.model.Error;
 import com.enterprise.service.service.EmployeeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -18,10 +22,21 @@ public class EmployeeController {
     private EmployeeService employeeService;
 
     @PostMapping
-    public ResponseEntity<?> createEmployee(@RequestBody Employee employee) {
-        boolean isSuccess = employeeService.createEmployee(employee);
-        if (isSuccess) {
-            return new ResponseEntity<String>("Employee has been created.", HttpStatus.CREATED);
+    public ResponseEntity<?> createEmployee(@RequestBody @Valid Employee employee, Errors errors) {
+        if(errors.hasErrors()) {
+            List<Error> errorList = new Error().getErrorDetails(errors.getAllErrors());
+            return new ResponseEntity<List<Error>>(errorList, HttpStatus.BAD_REQUEST);
+        }
+
+        Map<String, Object> map = employeeService.checkIfUsernameIsValid(employee.getUsername());
+
+        if( (boolean) map.get("status")) {
+            boolean isSuccess = employeeService.createEmployee(employee);
+            if (isSuccess) {
+                return new ResponseEntity<String>("Employee has been created.", HttpStatus.CREATED);
+            }
+        } else {
+            return new ResponseEntity<Map<String, Object>>(map, HttpStatus.BAD_REQUEST);
         }
         return new ResponseEntity<String>("Employee creation failed.", HttpStatus.BAD_REQUEST);
     }
@@ -54,11 +69,17 @@ public class EmployeeController {
     }
 
     @PutMapping
-    public ResponseEntity<?> updateEmployee(@RequestBody Employee employee) {
+    public ResponseEntity<?> updateEmployee(@RequestBody @Valid Employee employee, Errors errors) {
+        if(errors.hasErrors()) {
+            List<Error> errorList = new Error().getErrorDetails(errors.getAllErrors());
+            return new ResponseEntity<List<Error>>(errorList, HttpStatus.BAD_REQUEST);
+        }
+
         boolean isSuccess = employeeService.updateEmployee(employee);
         if (isSuccess) {
             return new ResponseEntity<String>("Employee details has been updated.", HttpStatus.OK);
         }
+
         return new ResponseEntity<String>("Employee updating failed.", HttpStatus.BAD_REQUEST);
     }
 
